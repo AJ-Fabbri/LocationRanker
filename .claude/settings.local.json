@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp \"Map Pack  NH 52 With a View.kmz\" /tmp/trailheads.kmz)",
+      "Read(//private/tmp/**)",
+      "Bash(unzip -o trailheads.kmz -d trailheads_kmz/)",
+      "Bash(pip show *)",
+      "Bash(python3 -c ' *)",
+      "Bash(streamlit run *)",
+      "Bash(curl -s http://localhost:8501)",
+      "Bash(python3 convert_kmz.py \"Map Pack  NH 52 With a View.kmz\" --folder Trailheads)",
+      "Bash(python3 convert_kmz.py)",
+      "Bash(python3 -c \"import pydeck; print\\(pydeck.__version__\\)\")",
+      "Bash(python3 -c \"import altair; print\\(altair.__version__\\)\")"
+    ]
+  }
+}

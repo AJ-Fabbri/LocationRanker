@@ -1,0 +1,5 @@
+streamlit==1.48.1
+altair==5.5.0
+pandas==2.2.2
+pydeck==0.9.1
+requests==2.32.3

@@ -1,0 +1,9 @@
+cache.db
+*.kmz
+*.kml
+convert_kmz.py
+__pycache__/
+*.pyc
+.DS_Store
+.env
+
