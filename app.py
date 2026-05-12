@@ -17,6 +17,8 @@ def init_session_cache():
         st.session_state.geocode_cache = {}
     if "drive_cache" not in st.session_state:
         st.session_state.drive_cache = {}
+    if "uploaded_list" not in st.session_state:
+        st.session_state.uploaded_list = None  # (name, records) or None
 
 
 def round_coord(v: float) -> float:
@@ -179,17 +181,35 @@ st.caption("Ranks a list of locations by estimated drive time from any starting 
 init_session_cache()
 lists = available_lists()
 
-if not lists:
-    st.error(
-        "No location lists found. Add a CSV file to the data/ folder to get started."
-    )
-    st.stop()
-
 with st.sidebar:
     st.header("Settings")
 
-    list_name = st.selectbox("Location list", options=lists)
-    locations = load_locations(list_name)
+    uploaded_file = st.file_uploader("Upload your own CSV", type="csv")
+    if uploaded_file is not None:
+        try:
+            df = pd.read_csv(uploaded_file)
+            missing = [c for c in ("name", "lat", "lon") if c not in df.columns]
+            if missing:
+                st.error(f"CSV missing columns: {', '.join(missing)}")
+            else:
+                st.session_state.uploaded_list = (uploaded_file.name.removesuffix(".csv"), df.to_dict(orient="records"))
+                st.success(f"Loaded {len(df)} locations from {uploaded_file.name}")
+        except Exception as e:
+            st.error(f"Could not read CSV: {e}")
+
+    all_lists = lists.copy()
+    if st.session_state.uploaded_list:
+        all_lists = [st.session_state.uploaded_list[0]] + all_lists
+
+    if not all_lists:
+        st.error("No location lists found. Upload a CSV or add one to the data/ folder.")
+        st.stop()
+
+    list_name = st.selectbox("Location list", options=all_lists)
+    if st.session_state.uploaded_list and list_name == st.session_state.uploaded_list[0]:
+        locations = st.session_state.uploaded_list[1]
+    else:
+        locations = load_locations(list_name)
     st.caption(f"{len(locations)} locations loaded")
 
     st.divider()

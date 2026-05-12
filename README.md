@@ -10,11 +10,17 @@ The included dataset is the [NH 52 With a View](https://www.trailspotting.com/p/
 
 ## How it works
 
-1. Drop one or more CSV files into the `data/` folder — each becomes a selectable list in the app.
+1. Drop one or more CSV files into the `data/` folder — each becomes a selectable list in the app. Or upload your own CSV directly in the sidebar.
 2. Enter a starting address or `lat, lon` coordinates.
 3. The app returns every location ranked by estimated drive time.
 
-Drive times come from [OSRM](http://project-osrm.org/) (free, no account needed) and are cached locally so repeated queries are instant. A correction factor slider lets you calibrate results against your own experience.
+Drive times come from [OSRM](http://project-osrm.org/) (free, no account needed) and are cached per session so repeated queries are instant. A correction factor slider lets you calibrate results against your own experience.
+
+### Uploading your own list
+
+Use the **Upload your own CSV** button in the sidebar to load a custom location list without touching the `data/` folder. The file must follow the same three-column format described below.
+
+Uploaded files and search history are session-only — they exist only in your browser tab and are never stored on the server or shared with other users. Closing or refreshing the tab clears everything.
 
 ---
 
@@ -49,5 +55,5 @@ Then open `http://localhost:8501` in your browser.
 ## Notes
 
 - Drive time estimates may be 10–20% higher than Google Maps on rural roads. Use the correction factor slider to tune.
-- All routing results are cached in `cache.db` (excluded from version control).
+- All routing results and search history are cached in memory for the duration of your session only — nothing is written to disk or shared between users.
 - The `data/` folder is the only thing you need to version control alongside `app.py`.
