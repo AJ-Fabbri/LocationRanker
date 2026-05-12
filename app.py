@@ -212,10 +212,14 @@ with st.sidebar:
 
 past = cached_addresses()
 
-raw_input = st.text_input(
-    "Enter a starting location",
-    placeholder="e.g. 123 Main St, Concord NH  or  43.2081,-71.5376",
-)
+col1, col2 = st.columns([3, 1], vertical_alignment="bottom")
+with col1:
+    raw_input = st.text_input(
+        "Enter a starting location",
+        placeholder="e.g. 123 Main St, Concord NH  or  43.2081,-71.5376",
+    )
+with col2:
+    go = st.button("Rank Locations", type="primary", use_container_width=True)
 
 use_history = False
 history_choice = None
@@ -230,8 +234,6 @@ if past:
         )
     with col2:
         use_history = st.button("Use This", use_container_width=True)
-
-go = st.button("Rank Locations", type="primary")
 
 active_query = None
 if use_history and history_choice:
