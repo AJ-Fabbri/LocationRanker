@@ -45,6 +45,7 @@ def load_locations(list_name: str) -> list[dict]:
 
 
 def geocode(address: str):
+    # look up an address string and return its (lat, lon) via Nominatim, caching the result
     cache = st.session_state.geocode_cache
     if address in cache:
         return cache[address]
@@ -210,37 +211,35 @@ with st.sidebar:
     )
 
 past = cached_addresses()
-NEW_SEARCH = "— type a new address below —"
-
-col1, col2 = st.columns([3, 1], vertical_alignment="bottom")
-with col1:
-    history_choice = st.selectbox(
-        "Previous searches",
-        options=[NEW_SEARCH] + past,
-        index=0,
-    )
-with col2:
-    use_history = st.button(
-        "Use Selected",
-        disabled=(history_choice == NEW_SEARCH),
-        use_container_width=True,
-    )
 
 raw_input = st.text_input(
-    "Or enter a new starting location",
+    "Enter a starting location",
     placeholder="e.g. 123 Main St, Concord NH  or  43.2081,-71.5376",
-    disabled=(history_choice != NEW_SEARCH),
 )
+
+use_history = False
+history_choice = None
+if past:
+    st.caption("Or choose a recent search:")
+    col1, col2 = st.columns([3, 1], vertical_alignment="bottom")
+    with col1:
+        history_choice = st.selectbox(
+            "Recent searches",
+            options=past,
+            label_visibility="collapsed",
+        )
+    with col2:
+        use_history = st.button("Use This", use_container_width=True)
 
 go = st.button("Rank Locations", type="primary")
 
 active_query = None
-if use_history and history_choice != NEW_SEARCH:
+if use_history and history_choice:
     active_query = history_choice
 elif go and raw_input.strip():
     active_query = raw_input.strip()
 elif go:
-    st.warning("Enter an address or select a previous search.")
+    st.warning("Enter a starting location above.")
 
 if active_query:
     origin_lat = origin_lon = None
