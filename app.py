@@ -1,4 +1,3 @@
-import sqlite3
 from pathlib import Path
 
 import altair as alt
@@ -8,31 +7,16 @@ import requests
 import streamlit as st
 
 DATA_DIR = Path(__file__).parent / "data"
-DB_PATH = Path("/tmp") / "trailheads_cache.db"
 
 OSRM_BASE = "http://router.project-osrm.org/table/v1/driving"
 NOMINATIM_BASE = "https://nominatim.openstreetmap.org/search"
 
 
-def get_db():
-    con = sqlite3.connect(DB_PATH)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS geocode_cache (
-            address TEXT PRIMARY KEY,
-            lat REAL,
-            lon REAL
-        )
-    """)
-    con.execute("""
-        CREATE TABLE IF NOT EXISTS drive_cache (
-            origin_key TEXT,
-            trailhead_name TEXT,
-            duration_s REAL,
-            PRIMARY KEY (origin_key, trailhead_name)
-        )
-    """)
-    con.commit()
-    return con
+def init_session_cache():
+    if "geocode_cache" not in st.session_state:
+        st.session_state.geocode_cache = {}
+    if "drive_cache" not in st.session_state:
+        st.session_state.drive_cache = {}
 
 
 def round_coord(v: float) -> float:
@@ -44,9 +28,8 @@ def origin_key(lat: float, lon: float) -> str:
     return f"osrm:{round_coord(lat)},{round_coord(lon)}"
 
 
-def cached_addresses(con: sqlite3.Connection) -> list[str]:
-    rows = con.execute("SELECT address FROM geocode_cache ORDER BY address").fetchall()
-    return [r[0] for r in rows]
+def cached_addresses() -> list[str]:
+    return sorted(st.session_state.geocode_cache.keys())
 
 
 @st.cache_data
@@ -61,18 +44,15 @@ def load_locations(list_name: str) -> list[dict]:
     return df.to_dict(orient="records")
 
 
-def geocode(address: str, con: sqlite3.Connection):
-    # check cache first to avoid hitting Nominatim on repeat lookups
-    row = con.execute(
-        "SELECT lat, lon FROM geocode_cache WHERE address = ?", (address,)
-    ).fetchone()
-    if row:
-        return row[0], row[1]
+def geocode(address: str):
+    cache = st.session_state.geocode_cache
+    if address in cache:
+        return cache[address]
 
     resp = requests.get(
         NOMINATIM_BASE,
         params={"q": address, "format": "json", "limit": 1},
-        headers={"User-Agent": "NH52-Trailhead-Tool/1.0"},
+        headers={"User-Agent": "LocationRanker/1.0"},
         timeout=10,
     )
     resp.raise_for_status()
@@ -81,38 +61,16 @@ def geocode(address: str, con: sqlite3.Connection):
         return None, None
     lat = float(results[0]["lat"])
     lon = float(results[0]["lon"])
-    con.execute(
-        "INSERT OR REPLACE INTO geocode_cache VALUES (?, ?, ?)", (address, lat, lon)
-    )
-    con.commit()
+    cache[address] = (lat, lon)
     return lat, lon
 
 
-def _check_cache(key: str, locations: list, con: sqlite3.Connection):
-    # only return a hit if every location in the list is present
-    cached = {
-        row[0]: row[1]
-        for row in con.execute(
-            "SELECT trailhead_name, duration_s FROM drive_cache WHERE origin_key = ?",
-            (key,),
-        ).fetchall()
-    }
-    return cached if len(cached) == len(locations) else None
-
-
-def _save_cache(key: str, result: dict, con: sqlite3.Connection):
-    con.executemany(
-        "INSERT OR REPLACE INTO drive_cache VALUES (?, ?, ?)",
-        [(key, name, d) for name, d in result.items()],
-    )
-    con.commit()
-
-
-def get_drive_times(origin_lat, origin_lon, locations, con):
+def get_drive_times(origin_lat, origin_lon, locations):
     key = origin_key(origin_lat, origin_lon)
-    hit = _check_cache(key, locations, con)
-    if hit:
-        return hit
+    cache = st.session_state.drive_cache
+    # only return a hit if every location in the list is cached
+    if key in cache and len(cache[key]) == len(locations):
+        return cache[key]
 
     # build a single OSRM table request: origin at index 0, locations at 1..n
     coords = f"{origin_lon},{origin_lat}"
@@ -126,7 +84,7 @@ def get_drive_times(origin_lat, origin_lon, locations, con):
     durations = resp.json()["durations"][0]
 
     result = {loc["name"]: durations[i] for i, loc in enumerate(locations)}
-    _save_cache(key, result, con)
+    cache[key] = result
     return result
 
 
@@ -217,7 +175,7 @@ st.set_page_config(page_title="Location Ranker", layout="wide")
 st.title("Location Ranker")
 st.caption("Ranks a list of locations by estimated drive time from any starting point.")
 
-con = get_db()
+init_session_cache()
 lists = available_lists()
 
 if not lists:
@@ -251,7 +209,7 @@ with st.sidebar:
         "Changing this is instant — raw times stay cached."
     )
 
-past = cached_addresses(con)
+past = cached_addresses()
 NEW_SEARCH = "— type a new address below —"
 
 col1, col2 = st.columns([3, 1], vertical_alignment="bottom")
@@ -297,7 +255,7 @@ if active_query:
 
     if origin_lat is None:
         with st.spinner("Geocoding address…"):
-            origin_lat, origin_lon = geocode(active_query, con)
+            origin_lat, origin_lon = geocode(active_query)
         if origin_lat is None:
             st.error("Could not geocode that address. Try being more specific or use lat,lon.")
             st.stop()
@@ -305,6 +263,6 @@ if active_query:
     st.success(f"Origin: {origin_lat:.5f}, {origin_lon:.5f}")
 
     with st.spinner("Fetching drive times…"):
-        times = get_drive_times(origin_lat, origin_lon, locations, con)
+        times = get_drive_times(origin_lat, origin_lon, locations)
 
     show_results(origin_lat, origin_lon, times, locations, factor)

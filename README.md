@@ -38,7 +38,7 @@ The filename becomes the list name shown in the app. Coordinates for each locati
 ## Running the app
 
 ```bash
-pip install streamlit pandas requests
+pip install -r requirements.txt
 streamlit run app.py
 ```
 
