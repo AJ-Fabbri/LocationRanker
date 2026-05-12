@@ -55,7 +55,7 @@ def available_lists() -> list[str]:
 
 
 @st.cache_data
-def load_trailheads(list_name: str) -> list[dict]:
+def load_locations(list_name: str) -> list[dict]:
     path = DATA_DIR / f"{list_name}.csv"
     df = pd.read_csv(path)
     return df.to_dict(orient="records")
@@ -88,8 +88,8 @@ def geocode(address: str, con: sqlite3.Connection):
     return lat, lon
 
 
-def _check_cache(key: str, trailheads: list, con: sqlite3.Connection):
-    # only return a hit if every trailhead in the list is present
+def _check_cache(key: str, locations: list, con: sqlite3.Connection):
+    # only return a hit if every location in the list is present
     cached = {
         row[0]: row[1]
         for row in con.execute(
@@ -97,7 +97,7 @@ def _check_cache(key: str, trailheads: list, con: sqlite3.Connection):
             (key,),
         ).fetchall()
     }
-    return cached if len(cached) == len(trailheads) else None
+    return cached if len(cached) == len(locations) else None
 
 
 def _save_cache(key: str, result: dict, con: sqlite3.Connection):
@@ -108,24 +108,24 @@ def _save_cache(key: str, result: dict, con: sqlite3.Connection):
     con.commit()
 
 
-def get_drive_times(origin_lat, origin_lon, trailheads, con):
+def get_drive_times(origin_lat, origin_lon, locations, con):
     key = origin_key(origin_lat, origin_lon)
-    hit = _check_cache(key, trailheads, con)
+    hit = _check_cache(key, locations, con)
     if hit:
         return hit
 
-    # build a single OSRM table request: origin at index 0, trailheads at 1..n
+    # build a single OSRM table request: origin at index 0, locations at 1..n
     coords = f"{origin_lon},{origin_lat}"
-    for t in trailheads:
-        coords += f";{t['lon']},{t['lat']}"
-    destinations = ";".join(str(i + 1) for i in range(len(trailheads)))
+    for loc in locations:
+        coords += f";{loc['lon']},{loc['lat']}"
+    destinations = ";".join(str(i + 1) for i in range(len(locations)))
     url = f"{OSRM_BASE}/{coords}?sources=0&destinations={destinations}&annotations=duration"
 
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
     durations = resp.json()["durations"][0]
 
-    result = {t["name"]: durations[i] for i, t in enumerate(trailheads)}
+    result = {loc["name"]: durations[i] for i, loc in enumerate(locations)}
     _save_cache(key, result, con)
     return result
 
@@ -138,18 +138,18 @@ def fmt_duration(seconds, factor=1.0):
     return f"{h}h {m}m" if h else f"{m}m"
 
 
-def show_results(origin_lat, origin_lon, times, trailheads, factor=1.0):
+def show_results(origin_lat, origin_lon, times, locations, factor=1.0):
     rows = []
-    for t in trailheads:
-        d = times.get(t["name"])
+    for loc in locations:
+        d = times.get(loc["name"])
         rows.append(
             {
-                "Trailhead": t["name"],
+                "Location": loc["name"],
                 "Drive Time": fmt_duration(d, factor),
                 "_seconds": (d * factor) if d is not None else float("inf"),
-                "lat": t["lat"],
-                "lon": t["lon"],
-                "Coordinates": f"{t['lat']:.5f}, {t['lon']:.5f}",
+                "lat": loc["lat"],
+                "lon": loc["lon"],
+                "Coordinates": f"{loc['lat']:.5f}, {loc['lon']:.5f}",
             }
         )
 
@@ -159,7 +159,7 @@ def show_results(origin_lat, origin_lon, times, trailheads, factor=1.0):
     tab1, tab2, tab3 = st.tabs(["Ranked List", "Map", "Drive Time Distribution"])
 
     with tab1:
-        st.dataframe(df[["Trailhead", "Drive Time", "Coordinates"]], use_container_width=True)
+        st.dataframe(df[["Location", "Drive Time", "Coordinates"]], use_container_width=True)
 
     with tab2:
         origin_df = pd.DataFrame([{
@@ -169,7 +169,7 @@ def show_results(origin_lat, origin_lon, times, trailheads, factor=1.0):
         }])
         points_df = pd.DataFrame([{
             "lat": r["lat"], "lon": r["lon"],
-            "name": r["Trailhead"], "drive_time": r["Drive Time"],
+            "name": r["Location"], "drive_time": r["Drive Time"],
             "color": [30, 120, 200],
         } for _, r in df.iterrows()])
         all_points = pd.concat([origin_df, points_df], ignore_index=True)
@@ -213,26 +213,25 @@ def show_results(origin_lat, origin_lon, times, trailheads, factor=1.0):
         st.altair_chart(chart, use_container_width=True)
 
 
-st.set_page_config(page_title="Trailhead Finder", layout="wide")
-st.title("Trailhead Finder")
-st.caption("Ranks locations by estimated drive time from any starting point.")
+st.set_page_config(page_title="Location Ranker", layout="wide")
+st.title("Location Ranker")
+st.caption("Ranks a list of locations by estimated drive time from any starting point.")
 
 con = get_db()
 lists = available_lists()
 
 if not lists:
     st.error(
-        "No trailhead lists found. Run `python convert_kmz.py <file.kmz>` "
-        "to create CSVs in the data/ folder."
+        "No location lists found. Add a CSV file to the data/ folder to get started."
     )
     st.stop()
 
 with st.sidebar:
     st.header("Settings")
 
-    list_name = st.selectbox("Trailhead list", options=lists)
-    trailheads = load_trailheads(list_name)
-    st.caption(f"{len(trailheads)} trailheads loaded")
+    list_name = st.selectbox("Location list", options=lists)
+    locations = load_locations(list_name)
+    st.caption(f"{len(locations)} locations loaded")
 
     st.divider()
 
@@ -275,7 +274,7 @@ raw_input = st.text_input(
     disabled=(history_choice != NEW_SEARCH),
 )
 
-go = st.button("Find Trailheads", type="primary")
+go = st.button("Rank Locations", type="primary")
 
 active_query = None
 if use_history and history_choice != NEW_SEARCH:
@@ -306,6 +305,6 @@ if active_query:
     st.success(f"Origin: {origin_lat:.5f}, {origin_lon:.5f}")
 
     with st.spinner("Fetching drive times…"):
-        times = get_drive_times(origin_lat, origin_lon, trailheads, con)
+        times = get_drive_times(origin_lat, origin_lon, locations, con)
 
-    show_results(origin_lat, origin_lon, times, trailheads, factor)
+    show_results(origin_lat, origin_lon, times, locations, factor)

@@ -1,9 +1,10 @@
 # Location Ranker
 
-Ranks a list of named locations by estimated drive time from any starting address or coordinates.
-- Includes the ranked list, a map of locations, and a histogram of how far places are from you.
+Ranks a list of named locations by estimated drive time from any starting address or coordinates. Includes the ranked list, a map, and a histogram of drive time distribution.
 
 Built with Streamlit. No API keys required.
+
+The included dataset is the [NH 52 With a View](https://www.trailspotting.com/p/nh52.html) trailhead list, but the app works with any CSV of named locations.
 
 ---
 
@@ -28,9 +29,9 @@ Another Place,43.982,-71.203
 ```
 
 - `name` — display name (any string)
-- `lat` / `lon` — decimal degrees (WGS 84)
+- `lat` / `lon` — decimal degrees (WGS 84) — addresses are not supported here
 
-The filename becomes the list name shown in the app.
+The filename becomes the list name shown in the app. Coordinates for each location must be looked up in advance (Google Maps, Google Earth, etc.).
 
 ---
 
