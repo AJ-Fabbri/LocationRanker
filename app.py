@@ -176,7 +176,7 @@ def show_results(origin_lat, origin_lon, times, locations, factor=1.0):
             )
             .properties(height=350)
         )
-        st.altair_chart(chart, width='stretch')
+        st.altair_chart(chart, use_container_width=True)
 
 
 st.set_page_config(page_title="Location Ranker", layout="wide")
