@@ -1,6 +1,7 @@
 cache.db
 *.kmz
 *.kml
+kmz/
 convert_kmz.py
 __pycache__/
 *.pyc

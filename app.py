@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import altair as alt
@@ -5,6 +6,10 @@ import pandas as pd
 import pydeck as pdk
 import requests
 import streamlit as st
+
+logging.getLogger("streamlit").addFilter(
+    type("_F", (logging.Filter,), {"filter": lambda self, r: "use_container_width" not in r.getMessage()})()
+)
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -120,7 +125,7 @@ def show_results(origin_lat, origin_lon, times, locations, factor=1.0):
     tab1, tab2, tab3 = st.tabs(["Ranked List", "Map", "Drive Time Distribution"])
 
     with tab1:
-        st.dataframe(df[["Location", "Drive Time", "Coordinates"]], use_container_width=True)
+        st.dataframe(df[["Location", "Drive Time", "Coordinates"]], width='stretch')
 
     with tab2:
         origin_df = pd.DataFrame([{
@@ -171,7 +176,7 @@ def show_results(origin_lat, origin_lon, times, locations, factor=1.0):
             )
             .properties(height=350)
         )
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width='stretch')
 
 
 st.set_page_config(page_title="Location Ranker", layout="wide")
@@ -239,7 +244,7 @@ with col1:
         placeholder="e.g. 123 Main St, Concord NH  or  43.2081,-71.5376",
     )
 with col2:
-    go = st.button("Rank Locations", type="primary", use_container_width=True)
+    go = st.button("Rank Locations", type="primary", width='stretch')
 
 use_history = False
 history_choice = None
@@ -253,7 +258,7 @@ if past:
             label_visibility="collapsed",
         )
     with col2:
-        use_history = st.button("Use This", use_container_width=True)
+        use_history = st.button("Use This", width='stretch')
 
 active_query = None
 if use_history and history_choice:

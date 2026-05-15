@@ -4,7 +4,8 @@ Ranks a list of named locations by estimated drive time from any starting addres
 
 Built with Streamlit. No API keys required.
 
-The included dataset is the [NH 52 With a View](https://www.trailspotting.com/p/nh52.html) trailhead list, but the app works with any CSV of named locations.
+The main included dataset the [NH 52 With a View](https://www.trailspotting.com/p/nh52.html) trailhead list, but the app works with any CSV of named locations.
+- I recently added the 48 NH 4000-foot peaks, but I don't have trailhead locations in one dataset, so this is somewhat less accurate because the backend attempts to route to the peaks. The rough order of which mountains are closest still works.
 
 ---
 
